@@ -26,17 +26,17 @@ TH Monthly Performance
 
   Input Files (5 Required Monthly)
 
-  1. Pro Forma ((Proforma)October2025.xlsx) - Project revenue data and master project list
-  2. Compensation ((Compensation)October2025.xlsx) - Staff hourly rate schedule
-  3. Harvest Hours ((HarvestHours)October2025.xlsx) - Time tracking data
-  4. Harvest Expenses ((HarvestExpenses)October2025.xlsx) - Project expense data
-  5. P&L ((P&L)October2025.xlsx) - Organizational overhead costs
+  1. Pro Forma - Project revenue data and master project list
+  2. Compensation - Staff hourly rate schedule
+  3. Harvest Hours - Time tracking data
+  4. Harvest Expenses - Project expense data
+  5. P&L - Organizational overhead costs
 
   Processing Logic
 
   The application applies a 12-step sequential process:
 
-  1. Extract revenue from Pro Forma (with aggregation rules)
+  1. Extract revenue from Pro Forma 
   2. Calculate labor costs (hours × hourly rates)
   3. Apply expense costs
   4. Calculate SG&A Override (cost center investment minus Starset Dev Cost)

@@ -1,9 +1,11 @@
 # TH Monthly Performance - Project Plan
 
 **Project:** th-monthly-performance
+
 **GitHub:** github.com/thtopher/th-monthly-performance
-**Target Completion:** Weekend (Initial Working Prototype)
+
 **Owner:** Topher
+
 **Stakeholder:** David (Third Horizon)
 
 ---

@@ -1,0 +1,13 @@
+match_type,pattern,bucket,notes
+exact,Data Services,DATA,Primary data infrastructure expense
+contains,Well-being Coaches,WORKPLACE,Workplace well-being coaches
+contains,Wellbeing Coaches,WORKPLACE,Alternative spelling
+contains,Mindful Learning,WORKPLACE,Mindfulness vendor
+contains,Wellbeing Benefit,NIL,Employee benefit - not allocated (different from Wellbeing Coaches)
+contains,Wages,NIL,Already in hourly labor rates
+contains,Payroll Taxes,NIL,Already in hourly labor rates
+contains,Health Insurance,NIL,Already in hourly labor rates
+contains,HRA,NIL,Already in hourly labor rates
+contains,ICHRA,NIL,Already in hourly labor rates
+contains,Guaranteed Payments,NIL,Already in hourly labor rates
+contains,401,NIL,Already in hourly labor rates

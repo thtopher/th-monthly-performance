@@ -1,0 +1,203 @@
+TH Monthly Performance
+
+  Monthly performance analysis platform for Third Horizon. Web application that processes operational data to generate detailed project-level profitability reports with automated cost allocation.
+
+  Overview
+
+  Third Horizon operates across multiple practice areas (Advisory, Data, Wellness) with complex overhead allocation requirements. This application transforms raw operational data into actionable financial insights by:
+
+  - Calculating true project-level profitability with full cost waterfalls
+  - Allocating overhead costs (SG&A, data infrastructure, wellbeing coaches) on a pro-rata basis
+  - Tracking cost center investments separately from revenue-generating work
+  - Identifying non-revenue client activity
+  - Generating executive dashboards and margin analytics
+
+  Features
+
+  - Web-based file upload - Team members upload monthly data files through a simple interface
+  - Automated data processing - 12-step sequential analysis engine processes all operational data
+  - Cost allocation engine - Pro-rata allocation of overhead costs to appropriate projects
+  - Multi-category reporting - Separates revenue centers, cost centers, and non-revenue client work
+  - Interactive dashboards - Visual performance summaries and project margin analysis
+  - Data validation - Built-in quality control checks ensure accuracy before finalization
+  - Export capabilities - Download detailed CSV reports and summary presentations
+
+  How It Works
+
+  Input Files (5 Required Monthly)
+
+  1. Pro Forma ((Proforma)October2025.xlsx) - Project revenue data and master project list
+  2. Compensation ((Compensation)October2025.xlsx) - Staff hourly rate schedule
+  3. Harvest Hours ((HarvestHours)October2025.xlsx) - Time tracking data
+  4. Harvest Expenses ((HarvestExpenses)October2025.xlsx) - Project expense data
+  5. P&L ((P&L)October2025.xlsx) - Organizational overhead costs
+
+  Processing Logic
+
+  The application applies a 12-step sequential process:
+
+  1. Extract revenue from Pro Forma (with aggregation rules)
+  2. Calculate labor costs (hours × hourly rates)
+  3. Apply expense costs
+  4. Calculate SG&A Override (cost center investment minus Starset Dev Cost)
+  5. Allocate SG&A across all revenue projects (pro-rata by revenue)
+  6. Allocate Data Infrastructure to Data projects only (pro-rata by Data revenue)
+  7. Allocate Wellbeing Coaches to Wellness projects only (pro-rata by Wellness revenue)
+  8. Calculate final contribution margins and margin percentages
+
+  Output Reports
+
+  - Revenue Adjustment Table - Complete cost waterfall for all revenue-bearing projects
+  - Cost Center Summary - Internal overhead investment breakdown
+  - Non-Revenue Client Report - Client work performed without revenue recognition
+  - Executive Dashboard - High-level performance metrics and insights
+
+  Tech Stack
+
+  - Backend: Python 3.13+
+  - Web Framework: Flask/FastAPI (TBD)
+  - Data Processing: pandas, openpyxl
+  - Frontend: HTML/CSS/JavaScript (React or vanilla JS)
+  - File Storage: Local filesystem or cloud storage (TBD)
+  - Deployment: Docker containerized
+
+  Installation
+
+  # Clone the repository
+  git clone https://github.com/thtopher/th-monthly-performance.git
+  cd th-monthly-performance
+
+  # Create virtual environment
+  python3 -m venv venv
+  source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+  # Install dependencies
+  pip install -r requirements.txt
+
+  # Run the application
+  python app.py
+
+  Project Structure
+
+  th-monthly-performance/
+  ├── README.md
+  ├── requirements.txt
+  ├── app.py                      # Main web application
+  ├── config.py                   # Configuration settings
+  ├── analysis/
+  │   ├── __init__.py
+  │   ├── data_loader.py         # Load and validate input files
+  │   ├── aggregation.py         # TKF, HWM, HPA aggregation rules
+  │   ├── classification.py      # Revenue/Cost/Non-Revenue classification
+  │   ├── cost_allocation.py     # SG&A, Data, Wellbeing allocation logic
+  │   ├── calculators.py         # Labor, expenses, margin calculations
+  │   └── validators.py          # Quality control checks
+  ├── web/
+  │   ├── routes.py              # Web application routes
+  │   ├── templates/             # HTML templates
+  │   └── static/                # CSS, JS, assets
+  ├── tests/
+  │   ├── test_data_loader.py
+  │   ├── test_aggregation.py
+  │   └── test_cost_allocation.py
+  └── docs/
+      └── Business_Rules.pdf     # Full technical specification
+
+  Usage
+
+  1. Upload Monthly Files
+
+  Navigate to the upload page and provide the 5 required monthly files. The application validates:
+  - File naming conventions
+  - Required columns and data types
+  - Date ranges match reporting month
+  - All project codes are valid
+
+  2. Review Data Summary
+
+  After upload, review the data summary showing:
+  - Total revenue extracted
+  - Number of projects identified
+  - Staff members and rates
+  - Total hours and expenses
+
+  3. Run Analysis
+
+  Click "Run Analysis" to execute the 12-step processing engine. The application will:
+  - Apply aggregation rules (TKF, HWM, HPA merges)
+  - Classify all activity into three categories
+  - Calculate labor and expense costs
+  - Allocate overhead costs
+  - Generate final contribution margins
+
+  4. View Reports & Dashboards
+
+  Access interactive dashboards showing:
+  - Overall performance metrics
+  - Project-level profitability (sorted by margin)
+  - Cost center investments
+  - Practice area performance comparison
+  - Margin contribution charts
+
+  5. Download Results
+
+  Export detailed CSV files and presentation-ready summaries.
+
+  Business Rules
+
+  The application follows a comprehensive 35-page business rules specification that defines:
+
+  - File structure requirements and data quality standards
+  - Aggregation and merge rules for specific project codes
+  - Three-category classification system
+  - Pro-rata allocation formulas
+  - Quality control validation checks
+
+  See docs/Business_Rules.pdf for complete technical documentation.
+
+  Key Concepts
+
+  Revenue Centers
+
+  Client projects with revenue recognized in the current month. These receive:
+  - Direct labor and expense allocation
+  - Pro-rata SG&A allocation (all projects)
+  - Pro-rata Data Infrastructure allocation (Data projects only)
+  - Pro-rata Wellbeing Coaches allocation (Wellness projects only)
+
+  Cost Centers
+
+  Internal overhead activities (business development, administration, meetings, etc.). These costs are aggregated and:
+  - Starset Dev Cost is separated for Data Infrastructure
+  - Remaining costs become SG&A Override
+  - Allocated across all revenue-bearing projects
+
+  Non-Revenue Clients
+
+  Client projects where work was performed but no revenue recognized in current month. Tracked separately for visibility but not included in margin calculations.
+
+  Contributing
+
+  This is an internal Third Horizon tool. For changes or enhancements:
+
+  1. Create a feature branch from main
+  2. Make changes with clear commit messages
+  3. Test thoroughly with sample data
+  4. Submit pull request with description of changes
+  5. Tag David for review
+
+  License
+
+  Internal use only - Third Horizon proprietary.
+
+  Contact
+
+  For questions or support:
+  - Project Lead: David (Third Horizon)
+  - Developer: Topher
+  - GitHub: https://github.com/thtopher/th-monthly-performance
+
+  ---
+  Current Status: In Development
+  Version: 0.1.0
+  Last Updated: December 2025

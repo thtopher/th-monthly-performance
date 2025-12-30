@@ -17,10 +17,15 @@ Third Horizon operates across multiple practice areas (Advisory, Data, Wellness)
 ### Key Features
 
 ✅ **Automated cost allocation** - Pro-rata distribution of SG&A, data infrastructure, and wellbeing costs
+
 ✅ **Project-level profitability** - Complete cost waterfall showing true margins
+
 ✅ **Config-driven** - Team can update cost center definitions without code changes
+
 ✅ **Flexible validation** - Warns on data issues without blocking analysis
+
 ✅ **Professional reports** - Publication-ready tables and dashboards
+
 ✅ **Web interface** - Simple upload page for team members
 
 ---

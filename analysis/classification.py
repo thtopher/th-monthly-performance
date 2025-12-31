@@ -9,6 +9,7 @@ Classifies all activity into three mutually exclusive categories:
 
 import pandas as pd
 from pathlib import Path
+import pandas as pd
 
 
 class ProjectClassifier:
@@ -28,8 +29,8 @@ class ProjectClassifier:
 
     def _load_cost_centers(self) -> set:
         """Load cost center codes from config."""
-        # TODO: Load cost center codes from CSV
-        raise NotImplementedError("_load_cost_centers not yet implemented")
+        df = pd.read_csv(self.cost_centers_path)
+        return set(df['code'].astype(str))
 
     def classify(self, project_code: str, is_revenue_center: bool) -> str:
         """
@@ -45,12 +46,19 @@ class ProjectClassifier:
         Raises:
             ValueError: If code is both revenue center and cost center (conflict)
         """
-        # TODO: Implement classification logic
-        # - Check if revenue center
-        # - Check if cost center
-        # - Detect conflicts (FAIL)
-        # - Default to non-revenue client
-        raise NotImplementedError("classify not yet implemented")
+        is_cost_center = project_code in self.cost_centers
+
+        if is_revenue_center and is_cost_center:
+            raise ValueError(
+                f"Classification conflict for '{project_code}': Code appears as both Revenue Center (Pro Forma) and Cost Center (config). Please resolve."
+            )
+
+        if is_revenue_center:
+            return 'revenue_center'
+        elif is_cost_center:
+            return 'cost_center'
+        else:
+            return 'non_revenue_client'
 
 
 def classify_all_activity(revenue_df: pd.DataFrame,
@@ -72,8 +80,40 @@ def classify_all_activity(revenue_df: pd.DataFrame,
         - 'cost_centers': Internal overhead
         - 'non_revenue_clients': Client work without revenue
     """
-    # TODO: Implement classification of all activity
-    # - Get all unique project codes from all sources
-    # - Classify each code
-    # - Split into three categories
-    raise NotImplementedError("classify_all_activity not yet implemented")
+    # Determine sets
+    revenue_codes = set(revenue_df['contract_code'].astype(str))
+    hours_codes = set(hours_df['contract_code'].astype(str)) if not hours_df.empty else set()
+    expense_codes = set(expenses_df['contract_code'].astype(str)) if not expenses_df.empty else set()
+    activity_codes = hours_codes.union(expense_codes)
+
+    all_codes = revenue_codes.union(activity_codes).union(classifier.cost_centers)
+
+    classifications = {}
+    for code in all_codes:
+        classifications[code] = classifier.classify(code, code in revenue_codes)
+
+    # Split
+    revenue_center_codes = {c for c, cls in classifications.items() if cls == 'revenue_center'}
+    cost_center_codes = {c for c, cls in classifications.items() if cls == 'cost_center'}
+    non_rev_codes = {c for c, cls in classifications.items() if cls == 'non_revenue_client'}
+
+    # Revenue centers: filter provided revenue_df to those codes
+    revenue_centers_df = revenue_df[revenue_df['contract_code'].isin(revenue_center_codes)].copy()
+
+    # Cost centers: from config, filter to classified codes, bring pool/description
+    cc_config = pd.read_csv(classifier.cost_centers_path)
+    cost_centers_df = cc_config[cc_config['code'].isin(cost_center_codes)].copy()
+    cost_centers_df.rename(columns={'code': 'contract_code'}, inplace=True)
+    # Initialize totals to 0.0; can be enriched later in pipeline
+    cost_centers_df['total_cost'] = 0.0
+
+    # Non-revenue clients: minimal frame of codes with placeholders
+    non_revenue_clients_df = pd.DataFrame({
+        'contract_code': sorted(non_rev_codes)
+    })
+
+    return {
+        'revenue_centers': revenue_centers_df,
+        'cost_centers': cost_centers_df,
+        'non_revenue_clients': non_revenue_clients_df,
+    }

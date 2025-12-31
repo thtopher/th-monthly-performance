@@ -4,7 +4,7 @@
 **Date:** December 30, 2025  
 
 This repository contains a deterministic monthly analysis engine for Third Horizon that:
-- ingests monthly exports (Pro Forma + Harvest + Compensation + P&L),
+- ingests monthly exports (Pro Forma + Harvest (Hours, Expenses) + Compensation + P&L),
 - joins everything by **contract code**,
 - produces project-level margins and overhead allocations.
 

@@ -25,12 +25,33 @@ def write_revenue_centers(df: pd.DataFrame, output_dir: str) -> Path:
     Returns:
         Path to created file
     """
-    # TODO: Implement revenue centers CSV output
-    # Columns: contract_code, project_name, proforma_section, analysis_category,
-    #          allocation_tag, revenue, labor_cost, non_reimbursable_expense,
-    #          sga_allocation, data_infrastructure_allocation, workplace_wellbeing_allocation,
-    #          margin_dollars, margin_percent
-    raise NotImplementedError("write_revenue_centers not yet implemented")
+    output_path = Path(output_dir) / "revenue_centers.csv"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    cols = [
+        'contract_code',
+        'project_name',
+        'proforma_section',
+        'analysis_category',
+        'allocation_tag',
+        'revenue',
+        'labor_cost',
+        'expense_cost',
+        'sga_allocation',
+        'data_allocation',
+        'workplace_allocation',
+        'margin_dollars',
+        'margin_percent',
+    ]
+    output = df[cols].copy()
+
+    for col in ['revenue', 'labor_cost', 'expense_cost', 'sga_allocation', 'data_allocation', 'workplace_allocation', 'margin_dollars']:
+        output[col] = output[col].round(2)
+    output['margin_percent'] = output['margin_percent'].round(1)
+
+    output.to_csv(output_path, index=False)
+    print(f"[INFO] ✓ Wrote {output_path}")
+    return output_path
 
 
 def write_cost_centers(df: pd.DataFrame, output_dir: str) -> Path:
@@ -44,10 +65,22 @@ def write_cost_centers(df: pd.DataFrame, output_dir: str) -> Path:
     Returns:
         Path to created file
     """
-    # TODO: Implement cost centers CSV output
-    # Columns: cost_center_code, description, labor_cost,
-    #          non_reimbursable_expense, total_cost, notes
-    raise NotImplementedError("write_cost_centers not yet implemented")
+    output_path = Path(output_dir) / "cost_centers.csv"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Allow variable presence of columns; select common ones
+    cols = []
+    for c in ['contract_code', 'description', 'pool', 'labor_cost', 'expense_cost', 'total_cost', 'notes']:
+        if c in df.columns:
+            cols.append(c)
+    output = df[cols].copy()
+    for col in ['labor_cost', 'expense_cost', 'total_cost']:
+        if col in output.columns:
+            output[col] = output[col].fillna(0.0).round(2)
+
+    output.to_csv(output_path, index=False)
+    print(f"[INFO] ✓ Wrote {output_path}")
+    return output_path
 
 
 def write_non_revenue_clients(df: pd.DataFrame, output_dir: str) -> Path:
@@ -61,10 +94,23 @@ def write_non_revenue_clients(df: pd.DataFrame, output_dir: str) -> Path:
     Returns:
         Path to created file
     """
-    # TODO: Implement non-revenue clients CSV output
-    # Columns: project_code, project_name, labor_cost,
-    #          non_reimbursable_expense, total_cost
-    raise NotImplementedError("write_non_revenue_clients not yet implemented")
+    output_path = Path(output_dir) / "non_revenue_clients.csv"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    cols = []
+    for c in ['contract_code', 'project_name', 'labor_cost', 'expense_cost', 'total_cost']:
+        if c in df.columns:
+            cols.append(c)
+    if not cols:
+        cols = ['contract_code']
+    output = df[cols].copy()
+    for col in ['labor_cost', 'expense_cost', 'total_cost']:
+        if col in output.columns:
+            output[col] = output[col].fillna(0.0).round(2)
+
+    output.to_csv(output_path, index=False)
+    print(f"[INFO] ✓ Wrote {output_path}")
+    return output_path
 
 
 def write_validation_report(results: ValidationResult,

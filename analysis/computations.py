@@ -24,12 +24,29 @@ def calculate_labor_costs(hours_df: pd.DataFrame, comp_df: pd.DataFrame) -> pd.D
     Raises:
         ValueError: If any staff in hours_df missing from comp_df
     """
-    # TODO: Implement labor cost calculation
-    # - Join hours with compensation on staff_key
-    # - FAIL if any staff missing compensation
-    # - Calculate: labor_cost = hours × hourly_cost
-    # - Group by project_code
-    raise NotImplementedError("calculate_labor_costs not yet implemented")
+    merged = hours_df.merge(
+        comp_df[["staff_key", "hourly_cost"]],
+        on="staff_key",
+        how="left",
+    )
+
+    missing = merged[merged["hourly_cost"].isna()]
+    if len(missing) > 0:
+        missing_staff = sorted(set(missing["staff_key"].astype(str)))
+        raise ValueError(
+            f"Missing compensation rates for staff: {', '.join(missing_staff)}. All staff in Harvest Hours must have compensation records."
+        )
+
+    merged["labor_cost"] = merged["hours"] * merged["hourly_cost"]
+
+    labor_by_project = (
+        merged.groupby("contract_code").agg({
+            "hours": "sum",
+            "labor_cost": "sum",
+        }).reset_index()
+    )
+
+    return labor_by_project
 
 
 def calculate_expense_costs(expenses_df: pd.DataFrame) -> pd.DataFrame:
@@ -42,10 +59,11 @@ def calculate_expense_costs(expenses_df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         DataFrame with expense costs by project_code
     """
-    # TODO: Implement expense cost calculation
-    # - Group by project_code
-    # - Sum amount_included
-    raise NotImplementedError("calculate_expense_costs not yet implemented")
+    expense_by_project = (
+        expenses_df.groupby("contract_code").agg({"amount": "sum"}).reset_index()
+    )
+    expense_by_project.rename(columns={"amount": "expense_cost"}, inplace=True)
+    return expense_by_project
 
 
 def merge_direct_costs(revenue_df: pd.DataFrame,
@@ -62,7 +80,9 @@ def merge_direct_costs(revenue_df: pd.DataFrame,
     Returns:
         DataFrame with revenue + direct costs
     """
-    # TODO: Implement direct cost merge
-    # - Left join revenue with labor (missing = 0)
-    # - Left join revenue with expenses (missing = 0)
-    raise NotImplementedError("merge_direct_costs not yet implemented")
+    out = revenue_df.merge(labor_df, on="contract_code", how="left")
+    out = out.merge(expense_df, on="contract_code", how="left")
+    out["hours"] = out.get("hours", 0).fillna(0.0)
+    out["labor_cost"] = out.get("labor_cost", 0).fillna(0.0)
+    out["expense_cost"] = out.get("expense_cost", 0).fillna(0.0)
+    return out

@@ -1,0 +1,10 @@
+{
+  "hours_per_week": 50,
+  "weeks_per_year": 52,
+  "months_per_year": 12,
+  "expected_hours_per_month": 216.6667,
+  "rounding": 2,
+  "include_cost_center_overhead_in_sga_pool": true,
+  "allocation_tolerance": 0.01,
+  "revenue_tolerance": 0.01
+}

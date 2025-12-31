@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: th-monthly-analysis
+    env: python
+    region: oregon
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn app:app"
+    plan: free
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.0
+      - key: FLASK_ENV
+        value: production

@@ -1,0 +1,15 @@
+code,description,pool
+THS-25-01-DEV,Business Development,SGA
+THS-25-01-BAD,Business Administration,SGA
+THS-25-01-MTG,Internal Meetings,SGA
+THS-25-01-SAD,Starset Dev Cost,DATA
+THS-25-01-OOO,Out of Office,SGA
+THS-25-01-PAD,Personal Administration,SGA
+THS-25-01-PRO,Professional Development,SGA
+THS-25-01-SPP,Internal Special Projects,SGA
+THS-25-01-TEA,Team Building,SGA
+THS-25-01-COM,Communications,SGA
+THS-25-01-CSR,Corporate Social Responsibility,SGA
+HC3,Health Care Council of Chicago,SGA
+GEH,Work Place Well-Being Administration,SGA
+BEH-25-01-APR,Alliance for Addiction Payment Reform,SGA

@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Files - TH Monthly Performance Analysis{% endblock %}
+
+{% block content %}
+<div class="upload-section">
+    <h2>Upload Monthly Files</h2>
+    <p class="instructions">
+        Upload the 5 required Excel files to generate project-level profitability analysis.
+        All files must be in <strong>.xlsx</strong> format.
+    </p>
+
+    <form method="POST" action="{{ url_for('upload_files') }}" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="month">Month and Year *</label>
+            <input type="text"
+                   id="month"
+                   name="month"
+                   placeholder="e.g., November2025"
+                   required
+                   pattern="[A-Za-z]+[0-9]{4}"
+                   title="Format: MonthYYYY (e.g., November2025)">
+            <small>Format: MonthYYYY (e.g., November2025)</small>
+        </div>
+
+        <div class="file-uploads">
+            <div class="file-group">
+                <label for="proforma">
+                    <span class="file-number">1</span>
+                    Pro Forma *
+                </label>
+                <input type="file"
+                       id="proforma"
+                       name="proforma"
+                       accept=".xlsx"
+                       required>
+                <small>Contains project revenue, allocation tags (Column A), and categories</small>
+            </div>
+
+            <div class="file-group">
+                <label for="compensation">
+                    <span class="file-number">2</span>
+                    Compensation *
+                </label>
+                <input type="file"
+                       id="compensation"
+                       name="compensation"
+                       accept=".xlsx"
+                       required>
+                <small>Staff compensation data with hourly rates or components</small>
+            </div>
+
+            <div class="file-group">
+                <label for="hours">
+                    <span class="file-number">3</span>
+                    Harvest Hours *
+                </label>
+                <input type="file"
+                       id="hours"
+                       name="hours"
+                       accept=".xlsx"
+                       required>
+                <small>Time tracking data from Harvest</small>
+            </div>
+
+            <div class="file-group">
+                <label for="expenses">
+                    <span class="file-number">4</span>
+                    Harvest Expenses *
+                </label>
+                <input type="file"
+                       id="expenses"
+                       name="expenses"
+                       accept=".xlsx"
+                       required>
+                <small>Expense tracking data (Billable column determines reimbursability)</small>
+            </div>
+
+            <div class="file-group">
+                <label for="pl">
+                    <span class="file-number">5</span>
+                    P&L Statement *
+                </label>
+                <input type="file"
+                       id="pl"
+                       name="pl"
+                       accept=".xlsx"
+                       required>
+                <small>Income Statement for overhead pool calculation</small>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Run Analysis</button>
+        </div>
+    </form>
+</div>
+
+<div class="info-section">
+    <h3>What This Tool Does</h3>
+    <div class="info-grid">
+        <div class="info-card">
+            <h4>1. Classify Projects</h4>
+            <p>Separates Revenue Centers, Cost Centers, and Non-Revenue Clients based on Pro Forma and config rules.</p>
+        </div>
+        <div class="info-card">
+            <h4>2. Calculate Direct Costs</h4>
+            <p>Computes labor costs (hours × rates) and non-reimbursable expenses for each project.</p>
+        </div>
+        <div class="info-card">
+            <h4>3. Allocate Overhead</h4>
+            <p>Distributes SG&A, Data Infrastructure, and Workplace Well-being pools pro-rata by revenue.</p>
+        </div>
+        <div class="info-card">
+            <h4>4. Generate Margins</h4>
+            <p>Calculates project-level profitability with full validation and audit trail.</p>
+        </div>
+    </div>
+
+    <h3>Output Files</h3>
+    <ul class="output-list">
+        <li><strong>revenue_centers.csv</strong> - Project P&L with margins and allocations</li>
+        <li><strong>cost_centers.csv</strong> - Internal overhead analysis</li>
+        <li><strong>non_revenue_clients.csv</strong> - Client work without revenue</li>
+        <li><strong>validation_report.md</strong> - Detailed audit trail and warnings</li>
+    </ul>
+</div>
+{% endblock %}

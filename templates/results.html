@@ -1,0 +1,1092 @@
+{% extends "base.html" %}
+
+{% block title %}Results - {{ analysis.month }} - TH Monthly Performance Analysis{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Overall Performance Dashboard - {{ analysis.month }}</h1>
+    <p class="timestamp">Generated: {{ analysis.timestamp }}</p>
+</div>
+
+<!-- Summary Metrics -->
+<div class="metrics-grid">
+    <div class="metric-card">
+        <div class="metric-value">${{ "{:,.0f}".format(summary.total_revenue) }}</div>
+        <div class="metric-label">Total Revenue</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-value">${{ "{:,.0f}".format(summary.total_margin) }}</div>
+        <div class="metric-label">Final Contribution Margin</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-value">{{ "{:.1f}".format(summary.overall_margin_pct) }}%</div>
+        <div class="metric-label">Overall Margin</div>
+    </div>
+</div>
+
+<!-- Cost Breakdown and Activity Categories -->
+<div class="breakdown-grid">
+    <div class="breakdown-section">
+        <h3>Cost Breakdown</h3>
+        <div class="breakdown-list">
+            <div class="breakdown-item">
+                <span class="breakdown-label">Labor Cost</span>
+                <span class="breakdown-value">${{ "{:,.0f}".format(summary.total_labor) }} ({{ "{:.1f}".format((summary.total_labor / summary.total_revenue * 100) if summary.total_revenue > 0 else 0) }}%)</span>
+            </div>
+            <div class="breakdown-item">
+                <span class="breakdown-label">Expense Cost</span>
+                <span class="breakdown-value">${{ "{:,.0f}".format(summary.total_expenses) }} ({{ "{:.1f}".format((summary.total_expenses / summary.total_revenue * 100) if summary.total_revenue > 0 else 0) }}%)</span>
+            </div>
+            <div class="breakdown-item">
+                <span class="breakdown-label">SG&A Offset</span>
+                <span class="breakdown-value">${{ "{:,.0f}".format(summary.total_sga) }} ({{ "{:.1f}".format((summary.total_sga / summary.total_revenue * 100) if summary.total_revenue > 0 else 0) }}%)</span>
+            </div>
+            <div class="breakdown-item">
+                <span class="breakdown-label">Data Infrastructure</span>
+                <span class="breakdown-value cost-data">${{ "{:,.0f}".format(summary.total_data) }} ({{ "{:.1f}".format((summary.total_data / summary.total_revenue * 100) if summary.total_revenue > 0 else 0) }}%)</span>
+            </div>
+            <div class="breakdown-item">
+                <span class="breakdown-label">Wellbeing Coaches</span>
+                <span class="breakdown-value">${{ "{:,.0f}".format(summary.total_workplace) }} ({{ "{:.1f}".format((summary.total_workplace / summary.total_revenue * 100) if summary.total_revenue > 0 else 0) }}%)</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="breakdown-section">
+        <h3>Activity Categories</h3>
+        <div class="breakdown-list">
+            <div class="breakdown-item">
+                <span class="breakdown-label">Revenue Centers (Active)</span>
+                <span class="breakdown-value count-success">{{ summary.revenue_center_count }} Projects</span>
+            </div>
+            {% if summary.inactive_count > 0 %}
+            <div class="breakdown-item">
+                <span class="breakdown-label">Inactive Projects</span>
+                <span class="breakdown-value" style="color: #9ca3af;">{{ summary.inactive_count }} Projects</span>
+            </div>
+            {% endif %}
+            <div class="breakdown-item">
+                <span class="breakdown-label">Cost Centers (Active)</span>
+                <span class="breakdown-value count-warning">{{ summary.cost_center_count }} Centers</span>
+            </div>
+            {% if summary.inactive_cost_center_count > 0 %}
+            <div class="breakdown-item">
+                <span class="breakdown-label">Inactive Cost Centers</span>
+                <span class="breakdown-value" style="color: #9ca3af;">{{ summary.inactive_cost_center_count }} Centers</span>
+            </div>
+            {% endif %}
+            <div class="breakdown-item">
+                <span class="breakdown-label">Non-Revenue Clients</span>
+                <span class="breakdown-value count-error">{{ summary.non_revenue_count }} Projects</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs for Different Tables -->
+<div class="table-tabs">
+    <button class="tab-button active" onclick="showTable('revenue')">Revenue Centers</button>
+    <button class="tab-button" onclick="showTable('margin')">Margin Analysis</button>
+    <button class="tab-button" onclick="showTable('cost')">Cost Centers</button>
+    <button class="tab-button" onclick="showTable('nonrevenue')">Non-Revenue Clients</button>
+    <button class="tab-button" onclick="showTable('validation')">Validation Report</button>
+    <button class="tab-button" onclick="showTable('methodology')">Methodology</button>
+</div>
+
+<!-- Revenue Centers Table -->
+<div id="revenue-table" class="table-container active">
+    <div class="table-header">
+        <div>
+            <h2>Revenue Center Analysis</h2>
+            <p class="table-subtitle">Complete Cost Waterfall and Margin Analysis</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <a href="{{ url_for('download_file', month=analysis.month, filename='revenue_centers.csv') }}" class="btn-download">Download Full CSV</a>
+            <button onclick="downloadRevenueCSV()" class="btn-download">Download Current View CSV</button>
+        </div>
+    </div>
+    <table id="revenue-datatable" class="display" style="width:100%">
+        <thead>
+            <tr>
+                <th>Project Name</th>
+                <th>Code</th>
+                <th>Category</th>
+                <th>Revenue</th>
+                <th>Labor</th>
+                <th>Expenses</th>
+                <th>SG&A</th>
+                <th>Data</th>
+                <th>Wellness</th>
+                <th>Margin</th>
+                <th>Margin %</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in revenue_data %}
+            <tr class="expandable-row" data-contract-code="{{ row.contract_code }}" data-month="{{ analysis.month }}" data-type="revenue">
+                <td>{{ row.project_name }}</td>
+                <td>{{ row.contract_code }}</td>
+                <td>{{ row.analysis_category }}</td>
+                <td class="currency">${{ "{:,.0f}".format(row.revenue) }}</td>
+                <td class="currency">${{ "{:,.0f}".format(row.labor_cost) }}</td>
+                <td class="currency">${{ "{:,.0f}".format(row.expense_cost) }}</td>
+                <td class="currency">${{ "{:,.0f}".format(row.sga_allocation) }}</td>
+                <td class="currency">${{ "{:,.0f}".format(row.data_allocation) }}</td>
+                <td class="currency">${{ "{:,.0f}".format(row.workplace_allocation) }}</td>
+                <td class="currency {{ 'margin-negative' if row.margin_dollars < 0 else 'margin-positive' }}">${{ "{:,.0f}".format(row.margin_dollars) }}</td>
+                <td class="percent {{ 'margin-negative' if row.margin_percent < 0 else 'margin-positive' }}">{{ "{:.1f}".format(row.margin_percent) }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Inactive Projects Section -->
+    {% if inactive_revenue_data and inactive_revenue_data|length > 0 %}
+    <div class="inactive-projects-section" style="margin-top: 20px;">
+        <button class="btn-toggle-inactive" onclick="toggleInactiveProjects()" data-count="{{ inactive_revenue_data|length }}" style="cursor: pointer; padding: 10px 15px; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #6b7280;">
+            Show Inactive Projects ({{ inactive_revenue_data|length }}) - No activity this month
+        </button>
+        <div id="inactive-projects-container" style="display: none; margin-top: 15px;">
+            <table class="display" style="width:100%; font-size: 13px;">
+                <thead>
+                    <tr>
+                        <th>Project Name</th>
+                        <th>Code</th>
+                        <th>Category</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in inactive_revenue_data %}
+                    <tr>
+                        <td>{{ row.project_name }}</td>
+                        <td>{{ row.contract_code }}</td>
+                        <td>{{ row.analysis_category }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Margin Analysis Visualization -->
+<div id="margin-table" class="table-container">
+    <div class="table-header">
+        <div>
+            <h2>Revenue Center Margin Contribution</h2>
+            <p class="table-subtitle">Final Margin by Project (Sorted Highest to Lowest)</p>
+        </div>
+    </div>
+    <div style="background: white; padding: 30px; border-radius: 8px; margin-top: 20px;">
+        <div style="height: 1000px;">
+            <canvas id="marginChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Cost Centers Table -->
+<div id="cost-table" class="table-container">
+    <div class="table-header">
+        <div>
+            <h2>Cost Center Analysis</h2>
+            <p class="table-subtitle">Internal Overhead Tracking</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <a href="{{ url_for('download_file', month=analysis.month, filename='cost_centers.csv') }}" class="btn-download">Download Full CSV</a>
+            <button onclick="downloadCostCenterCSV()" class="btn-download">Download Current View CSV</button>
+        </div>
+    </div>
+    <table id="cost-datatable" class="display" style="width:100%">
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th>Code</th>
+                <th>Pool</th>
+                <th>Labor Cost</th>
+                <th>Expense Cost</th>
+                <th>Total Cost</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in cost_center_data %}
+            <tr class="expandable-row" data-contract-code="{{ row.contract_code }}" data-month="{{ analysis.month }}" data-type="cost_center">
+                <td>{{ row.description }}</td>
+                <td>{{ row.contract_code }}</td>
+                <td><span class="badge badge-{{ row.pool.lower() }}">{{ row.pool }}</span></td>
+                <td class="currency">${{ "{:,.0f}".format(row.labor_cost) }}</td>
+                <td class="currency">${{ "{:,.0f}".format(row.expense_cost) }}</td>
+                <td class="currency">${{ "{:,.0f}".format(row.total_cost) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Inactive Cost Centers Section -->
+    {% if inactive_cost_center_data and inactive_cost_center_data|length > 0 %}
+    <div class="inactive-projects-section" style="margin-top: 20px;">
+        <button class="btn-toggle-inactive-cc" onclick="toggleInactiveCostCenters()" data-count="{{ inactive_cost_center_data|length }}" style="cursor: pointer; padding: 10px 15px; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #6b7280;">
+            Show Inactive Cost Centers ({{ inactive_cost_center_data|length }}) - No activity this month
+        </button>
+        <div id="inactive-cost-centers-container" style="display: none; margin-top: 15px;">
+            <table class="display" style="width:100%; font-size: 13px;">
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>Code</th>
+                        <th>Pool</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in inactive_cost_center_data %}
+                    <tr>
+                        <td>{{ row.description }}</td>
+                        <td>{{ row.contract_code }}</td>
+                        <td><span class="badge badge-{{ row.pool.lower() }}">{{ row.pool }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Non-Revenue Clients Table -->
+<div id="nonrevenue-table" class="table-container">
+    <div class="table-header">
+        <div>
+            <h2>Non-Revenue Clients</h2>
+            <p class="table-subtitle">Client Work Without Revenue</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <a href="{{ url_for('download_file', month=analysis.month, filename='non_revenue_clients.csv') }}" class="btn-download">Download Full CSV</a>
+            <button onclick="downloadNonRevenueCSV()" class="btn-download">Download Current View CSV</button>
+        </div>
+    </div>
+    <table id="nonrevenue-datatable" class="display" style="width:100%">
+        <thead>
+            <tr>
+                {% if non_revenue_data and non_revenue_data[0].get('project_name') %}
+                <th>Project Name</th>
+                <th>Code</th>
+                {% else %}
+                <th>Code</th>
+                {% endif %}
+                {% if non_revenue_data and non_revenue_data[0].get('labor_cost') is not none %}
+                <th>Labor Cost</th>
+                <th>Expense Cost</th>
+                <th>Total Cost</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in non_revenue_data %}
+            <tr class="expandable-row" data-contract-code="{{ row.contract_code }}" data-month="{{ analysis.month }}" data-type="non_revenue">
+                {% if row.get('project_name') %}
+                <td>{{ row.project_name }}</td>
+                <td>{{ row.contract_code }}</td>
+                {% else %}
+                <td>{{ row.contract_code }}</td>
+                {% endif %}
+                {% if row.get('labor_cost') is not none %}
+                <td class="currency">${{ "{:,.0f}".format(row.labor_cost) }}</td>
+                <td class="currency">${{ "{:,.0f}".format(row.expense_cost) }}</td>
+                <td class="currency">${{ "{:,.0f}".format(row.total_cost) }}</td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Validation Report -->
+<div id="validation-table" class="table-container">
+    <div class="table-header">
+        <h2>Validation Report</h2>
+        <p class="table-subtitle">{{ analysis.validation_summary }}</p>
+        <a href="{{ url_for('download_file', month=analysis.month, filename='validation_report.md') }}" class="btn-download">Download MD</a>
+    </div>
+    <div class="validation-content">
+        <pre>{{ validation_content }}</pre>
+    </div>
+</div>
+
+<!-- Methodology -->
+<div id="methodology-table" class="table-container">
+    <div class="table-header">
+        <h2>Methodology & Data Transformations</h2>
+        <p class="table-subtitle">How This Analysis Was Generated</p>
+    </div>
+    <div style="padding: 30px; max-width: 1200px; margin: 0 auto;">
+
+        <!-- Input Files -->
+        <div style="margin-bottom: 40px;">
+            <h3 style="color: #1f2937; border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;">📁 Input Files (5 Sources)</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
+                <div style="background: #f9fafb; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 4px;">
+                    <strong>1. Pro Forma Revenue</strong>
+                    <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 14px;">Expected revenue by project for the month</p>
+                </div>
+                <div style="background: #f9fafb; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 4px;">
+                    <strong>2. Compensation</strong>
+                    <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 14px;">Hourly cost rates for all staff members</p>
+                </div>
+                <div style="background: #f9fafb; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 4px;">
+                    <strong>3. Harvest Hours</strong>
+                    <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 14px;">Time entries logged by staff to projects</p>
+                </div>
+                <div style="background: #f9fafb; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 4px;">
+                    <strong>4. Harvest Expenses</strong>
+                    <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 14px;">Non-reimbursable expenses charged to projects</p>
+                </div>
+                <div style="background: #f9fafb; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 4px;">
+                    <strong>5. P&L Statement</strong>
+                    <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 14px;">Company-wide financial data for overhead pools</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- The Linking Key -->
+        <div style="margin-bottom: 40px;">
+            <h3 style="color: #1f2937; border-bottom: 3px solid #ef4444; padding-bottom: 10px; margin-bottom: 20px;">🔑 The Linking Key: Contract Code</h3>
+            <div style="background: #fef2f2; border: 3px solid #ef4444; padding: 25px; border-radius: 8px;">
+                <p style="margin: 0 0 15px 0; font-size: 16px; font-weight: 600; color: #991b1b;">Every piece of data is connected by the <strong>Contract Code</strong> (also called Project Code).</p>
+                <p style="margin: 0 0 12px 0; color: #7f1d1d; line-height: 1.7;">This unique identifier appears in all five input files and is what allows us to:</p>
+                <ul style="margin: 0 0 15px 20px; color: #7f1d1d; line-height: 1.8;">
+                    <li>Match revenue from Pro Forma to specific projects</li>
+                    <li>Link time entries from Harvest to the right project</li>
+                    <li>Associate expenses with their projects</li>
+                    <li>Calculate labor costs by joining hours with compensation rates</li>
+                    <li>Classify projects as Revenue Centers, Cost Centers, or Non-Revenue Clients</li>
+                </ul>
+                <div style="background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #dc2626;">
+                    <p style="margin: 0; font-size: 14px; color: #374151;"><strong>Example:</strong> Contract code "THS-25-001" appears in Pro Forma (with $50,000 revenue), Harvest Hours (with 120 hours logged), and Harvest Expenses (with $2,000 in costs). The contract code is the thread that ties all this data together into a complete project P&L.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ETL Overview -->
+        <div style="margin-bottom: 40px;">
+            <h3 style="color: #1f2937; border-bottom: 3px solid #8b5cf6; padding-bottom: 10px; margin-bottom: 20px;">🔄 ETL Process: Extract, Transform, Load</h3>
+            <div style="background: #faf5ff; border: 1px solid #c4b5fd; padding: 20px; border-radius: 6px;">
+                <div style="display: grid; gap: 20px;">
+                    <div style="display: flex; gap: 15px; align-items: start;">
+                        <div style="background: #7c3aed; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">1</div>
+                        <div style="flex: 1;">
+                            <strong style="color: #6d28d9; font-size: 15px;">EXTRACT</strong>
+                            <p style="margin: 5px 0 0 0; color: #5b21b6; font-size: 14px;">Read data from 5 Excel files. Normalize contract codes (standardize format). Filter out reimbursable expenses. Validate required columns exist.</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 15px; align-items: start;">
+                        <div style="background: #7c3aed; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">2</div>
+                        <div style="flex: 1;">
+                            <strong style="color: #6d28d9; font-size: 15px;">TRANSFORM</strong>
+                            <p style="margin: 5px 0 0 0; color: #5b21b6; font-size: 14px;">
+                                <strong>Classify</strong> projects using contract codes (Revenue/Cost/Non-Revenue) →
+                                <strong>Calculate</strong> direct costs (Hours × Rates, sum expenses by project) →
+                                <strong>Build</strong> overhead pools from P&L + Cost Centers →
+                                <strong>Allocate</strong> pools to Revenue Centers proportionally →
+                                <strong>Compute</strong> margins (Revenue − All Costs)
+                            </p>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 15px; align-items: start;">
+                        <div style="background: #7c3aed; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">3</div>
+                        <div style="flex: 1;">
+                            <strong style="color: #6d28d9; font-size: 15px;">LOAD</strong>
+                            <p style="margin: 5px 0 0 0; color: #5b21b6; font-size: 14px;">Generate 4 output tables (Revenue Centers, Cost Centers, Non-Revenue Clients, Validation Report). Validate all totals reconcile to source data. Save results as CSV files and display in dashboard.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase 1: Classification -->
+        <div style="margin-bottom: 40px;">
+            <h3 style="color: #1f2937; border-bottom: 3px solid #10b981; padding-bottom: 10px; margin-bottom: 20px;">🏷️ Phase 1: Project Classification</h3>
+            <p style="margin-bottom: 15px; color: #4b5563;">All projects and activities are classified into three mutually exclusive categories:</p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;">
+                <div style="background: #ecfdf5; border: 2px solid #10b981; padding: 15px; border-radius: 6px;">
+                    <strong style="color: #059669;">Revenue Centers</strong>
+                    <p style="margin: 8px 0 0 0; font-size: 14px;">Projects in Pro Forma with revenue &gt; $0. These are client projects that generate income.</p>
+                </div>
+                <div style="background: #fef3c7; border: 2px solid #f59e0b; padding: 15px; border-radius: 6px;">
+                    <strong style="color: #d97706;">Cost Centers</strong>
+                    <p style="margin: 8px 0 0 0; font-size: 14px;">Internal overhead activities listed in cost center configuration (e.g., admin, marketing).</p>
+                </div>
+                <div style="background: #fee2e2; border: 2px solid #ef4444; padding: 15px; border-radius: 6px;">
+                    <strong style="color: #dc2626;">Non-Revenue Clients</strong>
+                    <p style="margin: 8px 0 0 0; font-size: 14px;">Client work with time/expenses logged but no revenue (e.g., pro bono, proposals).</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase 2: Direct Cost Calculation -->
+        <div style="margin-bottom: 40px;">
+            <h3 style="color: #1f2937; border-bottom: 3px solid #8b5cf6; padding-bottom: 10px; margin-bottom: 20px;">Phase 2: Direct Cost Calculation</h3>
+            <div style="background: #faf5ff; border: 1px solid #c4b5fd; padding: 20px; border-radius: 6px;">
+                <div style="margin-bottom: 15px;">
+                    <strong style="color: #7c3aed;">Labor Costs</strong>
+                    <p style="margin: 5px 0 0 15px; font-size: 14px;">Hours from Harvest × Hourly rates from Compensation = Labor cost per project</p>
+                </div>
+                <div>
+                    <strong style="color: #7c3aed;">Expense Costs</strong>
+                    <p style="margin: 5px 0 0 15px; font-size: 14px;">Non-reimbursable expenses from Harvest (billable expenses excluded) = Expense cost per project</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pool Calculation -->
+        <div style="margin-bottom: 40px;">
+            <h3 style="color: #1f2937; border-bottom: 3px solid #f59e0b; padding-bottom: 10px; margin-bottom: 20px;">Building the Overhead Pools</h3>
+            <p style="margin-bottom: 15px; color: #4b5563; font-size: 15px;"><strong>Before we can allocate overhead, we need to calculate the total pool amounts from the P&L spreadsheet.</strong></p>
+            <p style="margin-bottom: 20px; color: #4b5563; font-size: 14px;">The system reads the P&L Income Statement (sheet: "IncomeStatement") and uses the <strong>Total Amount</strong> column (rightmost). Each expense row is categorized into a pool based on <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px;">config/pnl_account_tags.csv</code>:</p>
+
+            <div style="margin-bottom: 25px; background: #eff6ff; border: 2px solid #bfdbfe; padding: 20px; border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <div style="background: #3b82f6; color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">1</div>
+                    <strong style="color: #1e40af; font-size: 16px;">Data Infrastructure Pool</strong>
+                </div>
+                <div style="margin-left: 45px;">
+                    <p style="margin: 0 0 12px 0; color: #1e3a8a; line-height: 1.7;"><strong>Specific P&L Rows Included:</strong></p>
+                    <div style="background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #3b82f6; margin-bottom: 12px;">
+                        <div style="font-size: 14px; line-height: 1.9; color: #1f2937;">
+                            <div style="margin-bottom: 8px;"><strong>From P&L "Expenses" section → "Total Amount" column:</strong></div>
+                            <div style="margin-left: 20px; background: #eff6ff; padding: 8px; border-radius: 4px; margin-bottom: 4px;">• Row: <strong>"Data Services"</strong> (under Contractors/Advisors)</div>
+                            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #bfdbfe; color: #1e40af;">
+                                <strong>+ Cost Centers tagged as "DATA" pool</strong> (labor & expenses)
+                            </div>
+                            <div style="border-top: 2px solid #93c5fd; margin-top: 12px; padding-top: 8px; font-weight: bold; color: #1e40af;">= Total Data Infrastructure Pool</div>
+                        </div>
+                    </div>
+                    <p style="margin: 0; font-size: 13px; color: #1e40af; font-style: italic;">Determination: P&L row name exactly matches "Data Services" in configuration.</p>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 25px; background: #f0fdf4; border: 2px solid #bbf7d0; padding: 20px; border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <div style="background: #10b981; color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">2</div>
+                    <strong style="color: #15803d; font-size: 16px;">Wellness/Workplace Pool</strong>
+                </div>
+                <div style="margin-left: 45px;">
+                    <p style="margin: 0 0 12px 0; color: #166534; line-height: 1.7;"><strong>Specific P&L Rows Included:</strong></p>
+                    <div style="background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #10b981; margin-bottom: 12px;">
+                        <div style="font-size: 14px; line-height: 1.9; color: #1f2937;">
+                            <div style="margin-bottom: 8px;"><strong>From P&L "Expenses" section → "Total Amount" column:</strong></div>
+                            <div style="margin-left: 20px; background: #f0fdf4; padding: 8px; border-radius: 4px; margin-bottom: 4px;">• Row: <strong>"Well-being Coaches"</strong> or <strong>"Wellbeing Coaches"</strong> (under Contractors/Advisors)</div>
+                            <div style="margin-left: 20px; background: #f0fdf4; padding: 8px; border-radius: 4px; margin-bottom: 4px;">• Row: Any containing <strong>"Mindful Learning"</strong> (under Subscriptions)</div>
+                            <div style="border-top: 2px solid #86efac; margin-top: 12px; padding-top: 8px; font-weight: bold; color: #15803d;">= Total Wellness Pool</div>
+                        </div>
+                    </div>
+                    <p style="margin: 0; font-size: 13px; color: #15803d; font-style: italic;">Determination: P&L row name contains these keywords per configuration.</p>
+                </div>
+            </div>
+
+            <div style="background: #f9fafb; border: 2px solid #e5e7eb; padding: 20px; border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <div style="background: #6b7280; color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">3</div>
+                    <strong style="color: #374151; font-size: 16px;">SG&A Pool (Everything Else)</strong>
+                </div>
+                <div style="margin-left: 45px;">
+                    <p style="margin: 0 0 12px 0; color: #4b5563; line-height: 1.7;"><strong>Specific P&L Rows Included:</strong></p>
+                    <div style="background: white; padding: 15px; border-radius: 6px; border-left: 4px solid #6b7280; margin-bottom: 12px;">
+                        <div style="font-size: 14px; line-height: 1.9; color: #1f2937;">
+                            <div style="margin-bottom: 8px;"><strong>From P&L "Expenses" section → "Total Amount" column:</strong></div>
+                            <div style="margin-left: 20px; background: #f9fafb; padding: 8px; border-radius: 4px; margin-bottom: 4px;">• All rows under <strong>"Other Operating Expenses"</strong></div>
+                            <div style="margin-left: 20px; background: #f9fafb; padding: 8px; border-radius: 4px; margin-bottom: 4px;">• All rows under <strong>"Business Development"</strong> (Business Development, Conference Registration)</div>
+                            <div style="margin-left: 20px; background: #f9fafb; padding: 8px; border-radius: 4px; margin-bottom: 4px;">• All rows under <strong>"General & Administrative"</strong> (Bank Charges, Insurance, Cell Phone, IT Support, Office Supplies, Professional Development, Rent & Lease)</div>
+                            <div style="margin-left: 20px; background: #f9fafb; padding: 8px; border-radius: 4px; margin-bottom: 4px;">• All rows under <strong>"Subscriptions"</strong> (except Mindful Learning)</div>
+                            <div style="margin-left: 20px; background: #f9fafb; padding: 8px; border-radius: 4px; margin-bottom: 4px;">• All rows under <strong>"Uncompensated Travel"</strong></div>
+                            <div style="margin-left: 20px; background: #f9fafb; padding: 8px; border-radius: 4px; margin-bottom: 4px;">• Contractors/Advisors rows (except Data Services and Well-being Coaches)</div>
+                            <div style="margin-left: 20px; background: #f9fafb; padding: 8px; border-radius: 4px; margin-bottom: 4px;">• Row: <strong>"Amortization"</strong></div>
+                            <div style="margin-top: 12px; padding: 10px; background: #fef3c7; border-radius: 4px; border-left: 3px solid #f59e0b;">
+                                <strong style="color: #92400e;">EXCLUDED (not in any pool):</strong><br>
+                                <span style="font-size: 13px; color: #78350f;">Payroll Expenses section (Wages, 401k Match, Health Insurance, Partner Guaranteed Payment, Payroll Taxes, Wellbeing Benefit) - these are already captured in hourly labor rates from Compensation file.</span>
+                            </div>
+                            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #d1d5db; color: #374151;">
+                                <strong>+ All Cost Centers tagged as "SGA" pool</strong> (labor & expenses)
+                            </div>
+                            <div style="border-top: 2px solid #9ca3af; margin-top: 12px; padding-top: 8px; font-weight: bold; color: #374151;">= Total SG&A Pool</div>
+                        </div>
+                    </div>
+                    <p style="margin: 0; font-size: 13px; color: #6b7280; font-style: italic;">Determination: Any P&L expense row not tagged as DATA or WORKPLACE, and not explicitly excluded (payroll items).</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase 3: Overhead Allocation -->
+        <div style="margin-bottom: 40px;">
+            <h3 style="color: #1f2937; border-bottom: 3px solid #f59e0b; padding-bottom: 10px; margin-bottom: 20px;">Phase 3: Allocating Pools to Projects</h3>
+            <p style="margin-bottom: 20px; color: #4b5563; font-size: 15px;">Now that we've built the pools, we allocate them to Revenue Centers using <strong>proportional allocation based on revenue</strong>:</p>
+
+            <div style="margin-bottom: 20px; background: #f9fafb; border: 1px solid #e5e7eb; padding: 18px; border-radius: 6px;">
+                <strong style="color: #374151;">SG&A Allocation</strong>
+                <p style="margin: 8px 0 8px 0; font-size: 14px; color: #6b7280;">Allocated to <strong>ALL revenue centers</strong>. Each project receives a share proportional to its revenue as a % of total company revenue.</p>
+                <div style="background: white; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 13px; margin-top: 8px;">
+                    Project SG&A = (Project Revenue ÷ Total Revenue) × SG&A Pool
+                </div>
+            </div>
+
+            <div style="margin-bottom: 20px; background: #eff6ff; border: 1px solid #bfdbfe; padding: 18px; border-radius: 6px;">
+                <strong style="color: #1e40af;">Data Allocation</strong>
+                <p style="margin: 8px 0 8px 0; font-size: 14px; color: #1e40af;">Allocated <strong>ONLY to Data-tagged projects</strong>. Each Data project receives a share proportional to its revenue as a % of total Data project revenue.</p>
+                <div style="background: white; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 13px; margin-top: 8px;">
+                    Project Data = (Project Revenue ÷ Data-Tagged Revenue Total) × Data Pool
+                </div>
+            </div>
+
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 18px; border-radius: 6px;">
+                <strong style="color: #15803d;">Wellness Allocation</strong>
+                <p style="margin: 8px 0 8px 0; font-size: 14px; color: #15803d;">Allocated <strong>ONLY to Wellness-tagged projects</strong>. Each Wellness project receives a share proportional to its revenue as a % of total Wellness project revenue.</p>
+                <div style="background: white; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 13px; margin-top: 8px;">
+                    Project Wellness = (Project Revenue ÷ Wellness-Tagged Revenue Total) × Wellness Pool
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase 4: Margin Calculation -->
+        <div style="margin-bottom: 40px;">
+            <h3 style="color: #1f2937; border-bottom: 3px solid #059669; padding-bottom: 10px; margin-bottom: 20px;">📈 Phase 4: Margin Calculation</h3>
+            <div style="background: #ecfdf5; border: 2px solid #10b981; padding: 20px; border-radius: 6px;">
+                <p style="margin: 0 0 15px 0; font-size: 15px; font-weight: 600; color: #059669;">For each Revenue Center:</p>
+                <div style="background: white; padding: 15px; border-radius: 4px; font-family: monospace; line-height: 1.8;">
+                    <div>Revenue</div>
+                    <div style="color: #dc2626;">− Labor Cost</div>
+                    <div style="color: #dc2626;">− Expense Cost</div>
+                    <div style="color: #dc2626;">− SG&A Allocation</div>
+                    <div style="color: #dc2626;">− Data Allocation (if Data-tagged)</div>
+                    <div style="color: #dc2626;">− Wellness Allocation (if Wellness-tagged)</div>
+                    <div style="border-top: 2px solid #10b981; margin-top: 8px; padding-top: 8px; font-weight: bold; color: #059669;">= Net Margin</div>
+                </div>
+                <p style="margin: 15px 0 0 0; font-size: 14px; color: #6b7280;">Margin % = (Net Margin ÷ Revenue) × 100</p>
+            </div>
+        </div>
+
+        <!-- Output Tables -->
+        <div style="margin-bottom: 20px;">
+            <h3 style="color: #1f2937; border-bottom: 3px solid #6366f1; padding-bottom: 10px; margin-bottom: 20px;">Final Outputs</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                <div style="background: #eef2ff; border-left: 4px solid #6366f1; padding: 15px; border-radius: 4px;">
+                    <strong style="color: #4f46e5;">Revenue Centers Table</strong>
+                    <p style="margin: 5px 0 0 0; font-size: 13px; color: #6b7280;">Complete P&L with margins for all revenue-generating projects</p>
+                </div>
+                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 4px;">
+                    <strong style="color: #d97706;">Cost Centers Table</strong>
+                    <p style="margin: 5px 0 0 0; font-size: 13px; color: #6b7280;">Internal overhead costs by pool (SG&A, Data, Wellness)</p>
+                </div>
+                <div style="background: #fee2e2; border-left: 4px solid #ef4444; padding: 15px; border-radius: 4px;">
+                    <strong style="color: #dc2626;">Non-Revenue Clients Table</strong>
+                    <p style="margin: 5px 0 0 0; font-size: 13px; color: #6b7280;">Client work costs without revenue attribution</p>
+                </div>
+                <div style="background: #f0fdfa; border-left: 4px solid #14b8a6; padding: 15px; border-radius: 4px;">
+                    <strong style="color: #0d9488;">Validation Report</strong>
+                    <p style="margin: 5px 0 0 0; font-size: 13px; color: #6b7280;">Reconciliation checks confirming data integrity</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Principles -->
+        <div style="background: #fef9c3; border: 2px solid #eab308; padding: 20px; border-radius: 6px;">
+            <h4 style="margin: 0 0 12px 0; color: #854d0e;">Key Principles</h4>
+            <ul style="margin: 0; padding-left: 20px; line-height: 1.8; color: #713f12;">
+                <li>Projects are classified into exactly ONE category (mutually exclusive)</li>
+                <li>Overhead allocations apply ONLY to Revenue Centers</li>
+                <li>All allocations are proportional to revenue (no arbitrary splits)</li>
+                <li>Cost Centers contribute to overhead pools but receive no allocations</li>
+                <li>All financial data reconciles to source systems within tolerance</li>
+            </ul>
+        </div>
+
+    </div>
+</div>
+
+<div class="actions">
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">Run Another Analysis</a>
+</div>
+
+<!-- DataTables JS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<script>
+function showTable(tableId) {
+    // Hide all tables
+    document.querySelectorAll('.table-container').forEach(el => {
+        el.classList.remove('active');
+    });
+
+    // Remove active class from all tabs
+    document.querySelectorAll('.tab-button').forEach(el => {
+        el.classList.remove('active');
+    });
+
+    // Show selected table
+    document.getElementById(tableId + '-table').classList.add('active');
+
+    // Activate clicked tab
+    event.target.classList.add('active');
+}
+
+function toggleInactiveProjects() {
+    var container = document.getElementById('inactive-projects-container');
+    var button = document.querySelector('.btn-toggle-inactive');
+    var count = button.getAttribute('data-count');
+
+    if (container.style.display === 'none') {
+        container.style.display = 'block';
+        button.textContent = 'Hide Inactive Projects (' + count + ') - No activity this month';
+    } else {
+        container.style.display = 'none';
+        button.textContent = 'Show Inactive Projects (' + count + ') - No activity this month';
+    }
+}
+
+function toggleInactiveCostCenters() {
+    var container = document.getElementById('inactive-cost-centers-container');
+    var button = document.querySelector('.btn-toggle-inactive-cc');
+    var count = button.getAttribute('data-count');
+
+    if (container.style.display === 'none') {
+        container.style.display = 'block';
+        button.textContent = 'Hide Inactive Cost Centers (' + count + ') - No activity this month';
+    } else {
+        container.style.display = 'none';
+        button.textContent = 'Show Inactive Cost Centers (' + count + ') - No activity this month';
+    }
+}
+
+$(document).ready(function() {
+    var revenueTable = $('#revenue-datatable').DataTable({
+        order: [[3, 'desc']], // Sort by revenue descending
+        pageLength: 25,
+        columnDefs: [
+            { targets: [3,4,5,6,7,8,9], className: 'dt-right' }
+        ],
+        dom: 'Blfrtip',
+        buttons: [
+            {
+                extend: 'csv',
+                filename: 'revenue_centers_{{ analysis.month }}',
+                exportOptions: {
+                    modifier: {
+                        order: 'current',
+                        page: 'all',
+                        search: 'applied'
+                    }
+                }
+            }
+        ]
+    });
+
+    var costCenterTable = $('#cost-datatable').DataTable({
+        order: [[5, 'desc']], // Sort by total cost descending
+        pageLength: 25,
+        columnDefs: [
+            { targets: [3,4,5], className: 'dt-right' } // Labor, Expense, Total columns
+        ],
+        dom: 'Blfrtip',
+        buttons: [
+            {
+                extend: 'csv',
+                filename: 'cost_centers_{{ analysis.month }}',
+                exportOptions: {
+                    modifier: {
+                        order: 'current',
+                        page: 'all',
+                        search: 'applied'
+                    }
+                }
+            }
+        ]
+    });
+
+    // Configure non-revenue datatable (column count varies based on data)
+    var nrcTableElem = $('#nonrevenue-datatable');
+    var nrcColCount = nrcTableElem.find('thead th').length;
+    var nrcConfig = {
+        pageLength: 25,
+        dom: 'Blfrtip',
+        buttons: [
+            {
+                extend: 'csv',
+                filename: 'non_revenue_clients_{{ analysis.month }}',
+                exportOptions: {
+                    modifier: {
+                        order: 'current',
+                        page: 'all',
+                        search: 'applied'
+                    }
+                }
+            }
+        ]
+    };
+
+    // If we have project names (5 columns total), sort by last column (total cost)
+    // If not (4 columns), also sort by last column
+    if (nrcColCount >= 4) {
+        nrcConfig.order = [[nrcColCount - 1, 'desc']];
+        // Right-align cost columns (last 3 columns)
+        nrcConfig.columnDefs = [
+            { targets: [nrcColCount - 3, nrcColCount - 2, nrcColCount - 1], className: 'dt-right' }
+        ];
+    }
+
+    var nonRevenueTable = nrcTableElem.DataTable(nrcConfig);
+
+    // Export functions for header buttons
+    window.downloadRevenueCSV = function() {
+        revenueTable.button(0).trigger();
+    };
+
+    window.downloadCostCenterCSV = function() {
+        costCenterTable.button(0).trigger();
+    };
+
+    window.downloadNonRevenueCSV = function() {
+        nonRevenueTable.button(0).trigger();
+    };
+
+    // Generic click handler for expandable rows
+    function setupExpandableRows(tableSelector, tableObj) {
+        $(tableSelector + ' tbody').on('click', 'tr.expandable-row', function() {
+            var tr = $(this);
+            var row = tableObj.row(tr);
+            var contractCode = tr.data('contract-code');
+            var month = tr.data('month');
+            var type = tr.data('type');
+
+            if (row.child.isShown()) {
+                // Close expanded row - destroy any DataTables first
+                var contractCodeSafe = contractCode.replace(/[^a-zA-Z0-9]/g, '-');
+                var hoursTableId = '#hours-table-' + contractCodeSafe;
+                var expensesTableId = '#expenses-table-' + contractCodeSafe;
+
+                if ($.fn.DataTable.isDataTable(hoursTableId)) {
+                    $(hoursTableId).DataTable().destroy();
+                }
+                if ($.fn.DataTable.isDataTable(expensesTableId)) {
+                    $(expensesTableId).DataTable().destroy();
+                }
+
+                row.child.hide();
+                tr.removeClass('expanded');
+            } else {
+                // Open expanded row
+                tr.addClass('loading');
+
+                // Determine API endpoint based on type
+                var apiUrl;
+                if (type === 'revenue') {
+                    apiUrl = `/api/project-detail/${month}/${contractCode}`;
+                } else if (type === 'cost_center') {
+                    apiUrl = `/api/cost-center-detail/${month}/${contractCode}`;
+                } else if (type === 'non_revenue') {
+                    apiUrl = `/api/non-revenue-detail/${month}/${contractCode}`;
+                }
+
+                // Fetch drill-down data
+                fetch(apiUrl)
+                    .then(response => response.json())
+                    .then(data => {
+                        tr.removeClass('loading');
+                        if (data.error) {
+                            row.child('<div class="drill-down-error">Error loading details: ' + data.error + '</div>').show();
+                        } else {
+                            row.child(formatDrillDown(data)).show();
+                            tr.addClass('expanded');
+
+                            // Initialize DataTables on detail tables
+                            var contractCodeSafe = data.contract_code.replace(/[^a-zA-Z0-9]/g, '-');
+                            var hoursTableId = '#hours-table-' + contractCodeSafe;
+                            var expensesTableId = '#expenses-table-' + contractCodeSafe;
+
+                            // Hours table - default sort by hours descending (column 1)
+                            if ($(hoursTableId).length) {
+                                $(hoursTableId).DataTable({
+                                    paging: false,
+                                    searching: false,
+                                    info: false,
+                                    order: [[1, 'desc']]  // Hours column
+                                });
+                            }
+
+                            // Expenses table - default sort by amount descending (column 2)
+                            if ($(expensesTableId).length) {
+                                $(expensesTableId).DataTable({
+                                    paging: false,
+                                    searching: false,
+                                    info: false,
+                                    order: [[2, 'desc']]  // Amount column
+                                });
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        tr.removeClass('loading');
+                        row.child('<div class="drill-down-error">Error loading details</div>').show();
+                    });
+            }
+        });
+    }
+
+    // Setup expandable rows for all three tables
+    setupExpandableRows('#revenue-datatable', revenueTable);
+    setupExpandableRows('#cost-datatable', costCenterTable);
+    setupExpandableRows('#nonrevenue-datatable', nonRevenueTable);
+
+    // Format drill-down content
+    function formatDrillDown(data) {
+        var html = '<div class="drill-down-content">';
+
+        // Header - different for revenue vs cost center/non-revenue
+        html += '<div class="drill-down-header">';
+        if (data.project_name) {
+            // Revenue center
+            html += '<h3>' + data.project_name + '</h3>';
+        } else if (data.name) {
+            // Cost center or non-revenue client
+            html += '<h3>' + data.name + '</h3>';
+        } else {
+            html += '<h3>' + data.contract_code + '</h3>';
+        }
+        html += '<p class="drill-down-code">Contract Code: ' + data.contract_code + '</p>';
+        html += '</div>';
+
+        // Hours Detail and Allocation Calculations side-by-side
+        if (data.hours_detail && data.hours_detail.length > 0) {
+            html += '<div style="display: flex; gap: 15px; margin-top: 20px;">';
+
+            // Left side: Hours Detail
+            html += '<div style="flex: 1; min-width: 300px;">';
+            html += '<h4>Hours Detail (' + data.hours_detail.length + ' people)</h4>';
+            var hoursTableId = 'hours-table-' + data.contract_code.replace(/[^a-zA-Z0-9]/g, '-');
+            html += '<table id="' + hoursTableId + '" class="detail-table display" style="width:100%;">';
+            html += '<thead><tr><th>Person</th><th>Hours</th><th>Rate</th><th>Cost</th></tr></thead>';
+            html += '<tbody>';
+
+            var totalHours = 0;
+            var totalCost = 0;
+            data.hours_detail.forEach(function(entry) {
+                html += '<tr>';
+                html += '<td>' + entry.staff + '</td>';
+                html += '<td class="number">' + entry.hours.toFixed(1) + '</td>';
+                html += '<td class="number">$' + entry.rate.toFixed(2) + '</td>';
+                html += '<td class="number">$' + entry.cost.toFixed(2) + '</td>';
+                html += '</tr>';
+                totalHours += entry.hours;
+                totalCost += entry.cost;
+            });
+
+            html += '</tbody>';
+            html += '<tfoot><tr class="total-row"><td><strong>TOTAL</strong></td><td class="number"><strong>' + totalHours.toFixed(1) + '</strong></td><td></td><td class="number"><strong>$' + totalCost.toFixed(2) + '</strong></td></tr></tfoot>';
+            html += '</table>';
+            html += '</div>';
+
+            // Right side: Allocation Calculations
+            // SG&A Calculation (always shown for revenue centers)
+            if (data.sga_details && Object.keys(data.sga_details).length > 0) {
+                html += '<div style="flex: 0 0 320px;">';
+                html += '<h4>SG&A Allocation</h4>';
+                html += '<div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; font-size: 13px;">';
+
+                var sg = data.sga_details;
+                html += '<p style="margin: 0 0 8px 0; font-weight: 600;">How SG&A was calculated:</p>';
+                html += '<ol style="margin: 0; padding-left: 18px; line-height: 1.7; font-size: 12px;">';
+                html += '<li>Total SG&A Pool: <strong>$' + sg.sga_pool.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</strong></li>';
+                html += '<li>Total Revenue: <strong>$' + sg.total_revenue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</strong></li>';
+                html += '<li>Project Revenue: <strong>$' + sg.project_revenue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</strong></li>';
+                html += '<li>Project Share: <strong>' + sg.revenue_share_pct.toFixed(2) + '%</strong></li>';
+                html += '</ol>';
+                html += '<div style="margin-top: 10px; padding-top: 10px; border-top: 2px solid #d1d5db;">';
+                html += '<p style="margin: 0; font-size: 11px; color: #6b7280;"><strong>Formula:</strong></p>';
+                html += '<p style="margin: 3px 0 0 0; font-family: monospace; font-size: 11px;">($' + sg.project_revenue.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' ÷ $' + sg.total_revenue.toLocaleString(undefined, {maximumFractionDigits: 0}) + ') × $' + sg.sga_pool.toLocaleString(undefined, {maximumFractionDigits: 0}) + '</p>';
+                html += '<p style="margin: 3px 0 0 0; font-weight: bold; font-size: 14px;">= $' + sg.sga_allocation.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</p>';
+                html += '</div>';
+                html += '</div>';
+                html += '</div>';
+            }
+
+            // Data Allocation Calculation (only if Data-tagged)
+            if (data.data_details && Object.keys(data.data_details).length > 0) {
+                html += '<div style="flex: 0 0 320px;">';
+                html += '<h4>Data Allocation</h4>';
+                html += '<div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 12px; font-size: 13px;">';
+
+                var dd = data.data_details;
+                html += '<p style="margin: 0 0 8px 0; font-weight: 600;">How Data was calculated:</p>';
+                html += '<ol style="margin: 0; padding-left: 18px; line-height: 1.7; font-size: 12px;">';
+                html += '<li>Total Data Pool: <strong>$' + dd.data_pool.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</strong></li>';
+                html += '<li>Data-Tagged Revenue: <strong>$' + dd.data_tagged_revenue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</strong></li>';
+                html += '<li>Project Revenue: <strong>$' + dd.project_revenue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</strong></li>';
+                html += '<li>Project Share: <strong>' + dd.data_share_pct.toFixed(2) + '%</strong> of Data projects</li>';
+                html += '</ol>';
+                html += '<div style="margin-top: 10px; padding-top: 10px; border-top: 2px solid #93c5fd;">';
+                html += '<p style="margin: 0; font-size: 11px; color: #1e40af;"><strong>Formula:</strong></p>';
+                html += '<p style="margin: 3px 0 0 0; font-family: monospace; font-size: 11px;">($' + dd.project_revenue.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' ÷ $' + dd.data_tagged_revenue.toLocaleString(undefined, {maximumFractionDigits: 0}) + ') × $' + dd.data_pool.toLocaleString(undefined, {maximumFractionDigits: 0}) + '</p>';
+                html += '<p style="margin: 3px 0 0 0; font-weight: bold; font-size: 14px;">= $' + dd.data_allocation.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</p>';
+                html += '</div>';
+                html += '</div>';
+                html += '</div>';
+            }
+
+            // Wellness Allocation Calculation (only if Wellness-tagged)
+            if (data.wellness_details && Object.keys(data.wellness_details).length > 0) {
+                html += '<div style="flex: 0 0 320px;">';
+                html += '<h4>Wellness Allocation</h4>';
+                html += '<div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 12px; font-size: 13px;">';
+
+                var wd = data.wellness_details;
+                html += '<p style="margin: 0 0 8px 0; font-weight: 600;">How Wellness was calculated:</p>';
+                html += '<ol style="margin: 0; padding-left: 18px; line-height: 1.7; font-size: 12px;">';
+                html += '<li>Total Wellness Pool: <strong>$' + wd.workplace_pool.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</strong></li>';
+                html += '<li>Wellness-Tagged Revenue: <strong>$' + wd.wellness_tagged_revenue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</strong></li>';
+                html += '<li>Project Revenue: <strong>$' + wd.project_revenue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</strong></li>';
+                html += '<li>Project Share: <strong>' + wd.wellness_share_pct.toFixed(2) + '%</strong> of Wellness projects</li>';
+                html += '</ol>';
+                html += '<div style="margin-top: 10px; padding-top: 10px; border-top: 2px solid #86efac;">';
+                html += '<p style="margin: 0; font-size: 11px; color: #15803d;"><strong>Formula:</strong></p>';
+                html += '<p style="margin: 3px 0 0 0; font-family: monospace; font-size: 11px;">($' + wd.project_revenue.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' ÷ $' + wd.wellness_tagged_revenue.toLocaleString(undefined, {maximumFractionDigits: 0}) + ') × $' + wd.workplace_pool.toLocaleString(undefined, {maximumFractionDigits: 0}) + '</p>';
+                html += '<p style="margin: 3px 0 0 0; font-weight: bold; font-size: 14px;">= $' + wd.workplace_allocation.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</p>';
+                html += '</div>';
+                html += '</div>';
+                html += '</div>';
+            }
+
+            html += '</div>'; // Close flex container
+        }
+
+        // Expenses Detail
+        if (data.expenses_detail && data.expenses_detail.length > 0) {
+            html += '<div class="drill-down-section">';
+            html += '<h4>Expenses Detail (' + data.expenses_detail.length + ' entries)</h4>';
+            var expensesTableId = 'expenses-table-' + data.contract_code.replace(/[^a-zA-Z0-9]/g, '-');
+            html += '<table id="' + expensesTableId + '" class="detail-table display" style="width:100%;">';
+            html += '<thead><tr><th>Date</th><th>Description</th><th>Amount</th></tr></thead>';
+            html += '<tbody>';
+
+            var totalExpense = 0;
+            data.expenses_detail.forEach(function(entry) {
+                html += '<tr>';
+                html += '<td>' + (entry.date ? entry.date.split('T')[0] : 'N/A') + '</td>';
+                html += '<td>' + (entry.notes || entry.description || 'N/A') + '</td>';
+                html += '<td class="number">$' + parseFloat(entry.amount).toFixed(2) + '</td>';
+                html += '</tr>';
+                totalExpense += parseFloat(entry.amount);
+            });
+
+            html += '</tbody>';
+            html += '<tfoot><tr class="total-row"><td colspan="2"><strong>TOTAL</strong></td><td class="number"><strong>$' + totalExpense.toFixed(2) + '</strong></td></tr></tfoot>';
+            html += '</table>';
+            html += '</div>';
+        }
+
+        html += '</div>';
+        return html;
+    }
+});
+
+// Margin Chart Initialization
+document.addEventListener('DOMContentLoaded', function() {
+    // Prepare data from revenue centers
+    var revenueData = [
+        {% for row in revenue_data %}
+        {
+            project: "{{ row.project_name }}",
+            code: "{{ row.contract_code }}",
+            margin: {{ row.margin_dollars }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    // Sort by margin descending (highest to lowest)
+    revenueData.sort(function(a, b) {
+        return b.margin - a.margin;
+    });
+
+    // Prepare chart data
+    var labels = revenueData.map(function(item) {
+        return item.project + ' (' + item.code + ')';
+    });
+
+    var marginValues = revenueData.map(function(item) {
+        return item.margin;
+    });
+
+    // Color bars: green for positive, red for negative
+    var backgroundColors = revenueData.map(function(item) {
+        return item.margin >= 0 ? '#10b981' : '#ef4444';
+    });
+
+    // Create the chart
+    var ctx = document.getElementById('marginChart').getContext('2d');
+    var marginChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Margin ($)',
+                data: marginValues,
+                backgroundColor: backgroundColors,
+                borderColor: backgroundColors,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y', // Horizontal bars
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                title: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            var value = context.parsed.x;
+                            return 'Margin: $' + value.toLocaleString(undefined, {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0
+                            });
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    },
+                    grid: {
+                        color: '#e5e7eb'
+                    }
+                },
+                y: {
+                    ticks: {
+                        font: {
+                            size: 11
+                        }
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -43,11 +43,29 @@ class OverheadAllocator:
             - 'data_pool': Data infrastructure
             - 'workplace_pool': Workplace well-being
         """
-        # TODO: Implement pool calculation
-        # - Sum P&L accounts by bucket (DATA, WORKPLACE, NIL, SGA)
-        # - Optionally add cost center overhead to pools
-        # - Return pool amounts
-        raise NotImplementedError("calculate_pools not yet implemented")
+        # P&L buckets
+        data_pnl = pnl_df[pnl_df['bucket'] == 'DATA']['amount'].sum() if not pnl_df.empty else 0.0
+        workplace_pnl = pnl_df[pnl_df['bucket'] == 'WORKPLACE']['amount'].sum() if not pnl_df.empty else 0.0
+        sga_pnl = pnl_df[pnl_df['bucket'] == 'SGA']['amount'].sum() if not pnl_df.empty else 0.0
+
+        data_pool = data_pnl
+        sga_pool = sga_pnl
+
+        if include_cc_in_sga and not cost_centers_df.empty:
+            # Add cost center totals by assigned pool if available
+            if 'total_cost' in cost_centers_df.columns and 'pool' in cost_centers_df.columns:
+                data_cc = cost_centers_df[cost_centers_df['pool'] == 'DATA']['total_cost'].sum()
+                sga_cc = cost_centers_df[cost_centers_df['pool'] == 'SGA']['total_cost'].sum()
+                data_pool += float(data_cc)
+                sga_pool += float(sga_cc)
+
+        workplace_pool = workplace_pnl
+
+        return {
+            'sga_pool': float(sga_pool),
+            'data_pool': float(data_pool),
+            'workplace_pool': float(workplace_pool),
+        }
 
     def allocate_sga(self, revenue_df: pd.DataFrame, sga_pool: float) -> pd.DataFrame:
         """
@@ -60,10 +78,19 @@ class OverheadAllocator:
         Returns:
             DataFrame with sga_allocation column added
         """
-        # TODO: Implement SG&A allocation
-        # - Pro-rata by revenue: (project_revenue / total_revenue) * sga_pool
-        # - Validate sum equals pool (±tolerance)
-        raise NotImplementedError("allocate_sga not yet implemented")
+        total_rev = revenue_df['revenue'].sum()
+        if total_rev <= 0:
+            revenue_df['sga_allocation'] = 0.0
+            return revenue_df
+
+        alloc = (revenue_df['revenue'] / total_rev) * float(sga_pool)
+        revenue_df = revenue_df.copy()
+        revenue_df['sga_allocation'] = alloc
+
+        # Validate reconciliation
+        if abs(revenue_df['sga_allocation'].sum() - float(sga_pool)) > self.tolerance:
+            raise ValueError("SG&A allocation does not reconcile to pool within tolerance")
+        return revenue_df
 
     def allocate_data(self, revenue_df: pd.DataFrame, data_pool: float) -> pd.DataFrame:
         """
@@ -76,12 +103,20 @@ class OverheadAllocator:
         Returns:
             DataFrame with data_allocation column added (0 for non-Data projects)
         """
-        # TODO: Implement Data Infrastructure allocation
-        # - Filter to allocation_tag == 'Data'
-        # - Pro-rata by revenue within Data projects
-        # - Set 0 for non-Data projects
-        # - Validate sum equals pool (±tolerance)
-        raise NotImplementedError("allocate_data not yet implemented")
+        revenue_df = revenue_df.copy()
+        revenue_df['data_allocation'] = 0.0
+        data_df = revenue_df[revenue_df['allocation_tag'] == 'Data']
+        total_rev = data_df['revenue'].sum()
+        if total_rev <= 0:
+            # Nothing to allocate
+            return revenue_df
+
+        alloc = (data_df['revenue'] / total_rev) * float(data_pool)
+        revenue_df.loc[data_df.index, 'data_allocation'] = alloc
+
+        if abs(revenue_df['data_allocation'].sum() - float(data_pool)) > self.tolerance:
+            raise ValueError("Data allocation does not reconcile to pool within tolerance")
+        return revenue_df
 
     def allocate_workplace(self, revenue_df: pd.DataFrame, workplace_pool: float) -> pd.DataFrame:
         """
@@ -94,12 +129,19 @@ class OverheadAllocator:
         Returns:
             DataFrame with workplace_allocation column added (0 for non-Wellness projects)
         """
-        # TODO: Implement Workplace Well-being allocation
-        # - Filter to allocation_tag == 'Wellness'
-        # - Pro-rata by revenue within Wellness projects
-        # - Set 0 for non-Wellness projects
-        # - Validate sum equals pool (±tolerance)
-        raise NotImplementedError("allocate_workplace not yet implemented")
+        revenue_df = revenue_df.copy()
+        revenue_df['workplace_allocation'] = 0.0
+        w_df = revenue_df[revenue_df['allocation_tag'] == 'Wellness']
+        total_rev = w_df['revenue'].sum()
+        if total_rev <= 0:
+            return revenue_df
+
+        alloc = (w_df['revenue'] / total_rev) * float(workplace_pool)
+        revenue_df.loc[w_df.index, 'workplace_allocation'] = alloc
+
+        if abs(revenue_df['workplace_allocation'].sum() - float(workplace_pool)) > self.tolerance:
+            raise ValueError("Workplace allocation does not reconcile to pool within tolerance")
+        return revenue_df
 
 
 def calculate_margins(revenue_df: pd.DataFrame) -> pd.DataFrame:
@@ -112,7 +154,22 @@ def calculate_margins(revenue_df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         DataFrame with margin_dollars and margin_percent columns added
     """
-    # TODO: Implement margin calculation
-    # margin_dollars = revenue - labor_cost - expense_cost - sga_allocation - data_allocation - workplace_allocation
-    # margin_percent = margin_dollars / revenue (handle division by zero)
-    raise NotImplementedError("calculate_margins not yet implemented")
+    df = revenue_df.copy()
+    for col in ['labor_cost', 'expense_cost', 'sga_allocation', 'data_allocation', 'workplace_allocation']:
+        if col not in df.columns:
+            df[col] = 0.0
+        df[col] = df[col].fillna(0.0)
+
+    df['margin_dollars'] = (
+        df['revenue']
+        - df['labor_cost']
+        - df['expense_cost']
+        - df['sga_allocation']
+        - df['data_allocation']
+        - df['workplace_allocation']
+    )
+    df['margin_percent'] = df.apply(
+        lambda r: (r['margin_dollars'] / r['revenue'] * 100.0) if r['revenue'] else 0.0,
+        axis=1,
+    )
+    return df
